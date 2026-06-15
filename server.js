@@ -11,7 +11,7 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 const JWT_SECRET = 'stock_dashboard_secret_key_2024';
-const PORT = 3001;
+const PORT = process.env.PORT || 3000;
 
 // ─── In-memory data store ────────────────────────────────────────────────────
 const SUPPORTED_STOCKS = ['GOOG', 'TSLA', 'AMZN', 'META', 'NVDA'];

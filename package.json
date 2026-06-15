@@ -1,0 +1,27 @@
+{
+  "name": "stock-pulse-dashboard",
+  "version": "1.0.0",
+  "description": "A real-time stock broker client web dashboard with live price updates via WebSockets",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "stock",
+    "dashboard",
+    "real-time",
+    "websocket",
+    "broker"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "express": "^4.18.0",
+    "jsonwebtoken": "^9.0.0",
+    "uuid": "^14.0.0",
+    "ws": "^8.0.0"
+  }
+}

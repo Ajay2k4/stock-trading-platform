@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StockPulse — Live Dashboard</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0e1a;
+      --surface:   #111827;
+      --surface2:  #1a2234;
+      --border:    #1e2d47;
+      --accent:    #3b82f6;
+      --accent2:   #60a5fa;
+      --green:     #10b981;
+      --red:       #ef4444;
+      --text:      #f1f5f9;
+      --muted:     #64748b;
+      --muted2:    #94a3b8;
+      --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Login Screen ── */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(59,130,246,0.12) 0%, transparent 70%);
+    }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    }
+
+    .login-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .login-logo svg { color: var(--accent); }
+
+    .login-logo span {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+
+    .login-card h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.4px;
+    }
+
+    .login-card p {
+      color: var(--muted2);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+
+    .form-group { margin-bottom: 18px; }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted2);
+      margin-bottom: 6px;
+      letter-spacing: 0.3px;
+    }
+
+    .form-group input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus { border-color: var(--accent); }
+    .form-group input::placeholder { color: var(--muted); }
+
+    .btn-primary {
+      width: 100%;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+
+    .btn-primary:hover { background: #2563eb; }
+    .btn-primary:active { transform: scale(0.99); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .login-hint {
+      margin-top: 20px;
+      padding: 12px 14px;
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--muted2);
+    }
+
+    .login-hint strong { color: var(--accent2); }
+
+    .error-msg {
+      color: var(--red);
+      font-size: 13px;
+      margin-top: 10px;
+      text-align: center;
+      min-height: 18px;
+    }
+
+    /* ── Dashboard ── */
+    #dashboard { display: none; flex-direction: column; min-height: 100vh; }
+
+    /* Header */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.3px;
+    }
+
+    .header-logo svg { color: var(--accent); }
+
+    .header-right { display: flex; align-items: center; gap: 16px; }
+
+    .ws-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .ws-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    .ws-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .ws-dot.disconnected { background: var(--red); }
+
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      color: var(--muted2);
+    }
+
+    .user-badge span { color: var(--text); font-weight: 500; }
+
+    .btn-logout {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 12px;
+      color: var(--muted2);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+    /* Main layout */
+    .main { display: flex; flex: 1; }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      flex-shrink: 0;
+    }
+
+    .sidebar h2 {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      padding: 0 8px;
+    }
+
+    .stock-list { display: flex; flex-direction: column; gap: 4px; }
+
+    .stock-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .stock-item:hover { background: var(--surface2); }
+
+    .stock-item.subscribed {
+      background: rgba(59,130,246,0.08);
+      border-color: rgba(59,130,246,0.2);
+    }
+
+    .stock-item-left { display: flex; align-items: center; gap: 10px; }
+
+    .stock-icon {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--accent2);
+      letter-spacing: -0.5px;
+      border: 1px solid var(--border);
+    }
+
+    .stock-item.subscribed .stock-icon {
+      background: rgba(59,130,246,0.15);
+      border-color: rgba(59,130,246,0.3);
+      color: var(--accent);
+    }
+
+    .stock-info { display: flex; flex-direction: column; }
+    .stock-ticker { font-size: 13px; font-weight: 600; }
+    .stock-name { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+    .sub-toggle {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--muted);
+      background: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .stock-item.subscribed .sub-toggle {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .sub-toggle svg { color: #fff; display: none; }
+    .stock-item.subscribed .sub-toggle svg { display: block; }
+
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    .sidebar-info {
+      padding: 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* Content area */
+    .content {
+      flex: 1;
+      padding: 28px 32px;
+      overflow-y: auto;
+    }
+
+    .content-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .content-header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+    }
+
+    .content-header p { color: var(--muted2); font-size: 13px; margin-top: 3px; }
+
+    .last-updated {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: var(--font-mono);
+    }
+
+    /* Stock cards grid */
+    .stock-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .stock-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stock-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .stock-card:hover { border-color: rgba(59,130,246,0.3); }
+    .stock-card:hover::before { opacity: 1; }
+
+    .stock-card.flash-green { animation: flashGreen 0.4s ease; }
+    .stock-card.flash-red   { animation: flashRed   0.4s ease; }
+
+    @keyframes flashGreen {
+      0%   { box-shadow: 0 0 0 rgba(16,185,129,0); }
+      50%  { box-shadow: 0 0 16px rgba(16,185,129,0.35); border-color: rgba(16,185,129,0.5); }
+      100% { box-shadow: 0 0 0 rgba(16,185,129,0); }
+    }
+
+    @keyframes flashRed {
+      0%   { box-shadow: 0 0 0 rgba(239,68,68,0); }
+      50%  { box-shadow: 0 0 16px rgba(239,68,68,0.3); border-color: rgba(239,68,68,0.4); }
+      100% { box-shadow: 0 0 0 rgba(239,68,68,0); }
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .card-ticker-wrap { display: flex; align-items: center; gap: 10px; }
+
+    .card-icon {
+      width: 38px; height: 38px;
+      background: rgba(59,130,246,0.1);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+
+    .card-ticker { font-size: 16px; font-weight: 700; }
+    .card-name   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+    .btn-unsub {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-unsub:hover { border-color: var(--red); color: var(--red); }
+
+    .card-price {
+      font-size: 32px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      letter-spacing: -1px;
+      line-height: 1;
+      margin-bottom: 8px;
+      transition: color 0.3s;
+    }
+
+    .card-change {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      padding: 3px 8px;
+      border-radius: 5px;
+    }
+
+    .card-change.up   { color: var(--green); background: rgba(16,185,129,0.1); }
+    .card-change.down { color: var(--red);   background: rgba(239,68,68,0.1);   }
+    .card-change.flat { color: var(--muted); background: var(--surface2);        }
+
+    .card-sparkline {
+      margin-top: 14px;
+      height: 40px;
+      position: relative;
+    }
+
+    .card-sparkline svg { width: 100%; height: 100%; }
+
+    /* Empty state */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .empty-state svg { color: var(--muted); opacity: 0.4; }
+    .empty-state h3 { font-size: 18px; font-weight: 600; color: var(--muted2); }
+    .empty-state p  { font-size: 14px; color: var(--muted); max-width: 300px; line-height: 1.6; }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 13px;
+      color: var(--text);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 999;
+      max-width: 280px;
+    }
+
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.success { border-color: var(--green); }
+    #toast.error   { border-color: var(--red);   }
+
+    /* Utility */
+    .green { color: var(--green); }
+    .red   { color: var(--red);   }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- ── Login Screen ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+      </svg>
+      <span>StockPulse</span>
+    </div>
+    <h1>Welcome back</h1>
+    <p>Sign in to access your live stock dashboard</p>
+
+    <div class="form-group">
+      <label for="login-email">Email address</label>
+      <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" />
+    </div>
+    <div class="form-group">
+      <label for="login-password">Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+
+    <div class="error-msg" id="login-error"></div>
+    <button class="btn-primary" id="login-btn">Sign in</button>
+
+    <div class="login-hint">
+      <strong>Demo accounts:</strong><br>
+      alice@example.com / password123<br>
+      bob@example.com &nbsp;&nbsp;/ password123
+    </div>
+  </div>
+</div>
+
+<!-- ── Dashboard ── -->
+<div id="dashboard">
+  <header class="header">
+    <div class="header-logo">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+      </svg>
+      StockPulse
+    </div>
+    <div class="header-right">
+      <div class="ws-status">
+        <div class="ws-dot" id="ws-dot"></div>
+        <span id="ws-label">Connecting…</span>
+      </div>
+      <div class="user-badge">
+        👤 <span id="user-email-display">—</span>
+      </div>
+      <button class="btn-logout" id="logout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h2>All Stocks</h2>
+      <div class="stock-list" id="sidebar-stock-list"></div>
+      <div class="sidebar-divider"></div>
+      <div class="sidebar-info">
+        Click a stock to subscribe or unsubscribe. Live prices update every second via WebSocket.
+      </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="content">
+      <div class="content-header">
+        <div>
+          <h1>My Portfolio</h1>
+          <p id="sub-count-label">No subscriptions yet</p>
+        </div>
+        <div class="last-updated" id="last-updated-label">—</div>
+      </div>
+
+      <div id="empty-state" class="empty-state">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+        </svg>
+        <h3>No stocks subscribed</h3>
+        <p>Select stocks from the sidebar to start watching live prices on your dashboard.</p>
+      </div>
+
+      <div class="stock-cards-grid" id="stock-cards-grid"></div>
+    </main>
+  </div>
+</div>
+
+<!-- Toast notification -->
+<div id="toast"></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const API_BASE = 'http://localhost:3001/api';
+const WS_URL   = 'ws://localhost:3001';
+
+const STOCK_NAMES = {
+  GOOG: 'Alphabet Inc.',
+  TSLA: 'Tesla Inc.',
+  AMZN: 'Amazon.com Inc.',
+  META: 'Meta Platforms',
+  NVDA: 'NVIDIA Corp.'
+};
+
+// ── State ────────────────────────────────────────────────────────────────────
+let token = localStorage.getItem('sp_token') || null;
+let currentUser = null;
+let ws = null;
+let subscriptions = [];
+let priceHistory = {}; // ticker → last 20 prices for sparkline
+
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+const loginScreen       = document.getElementById('login-screen');
+const dashboard         = document.getElementById('dashboard');
+const loginEmailEl      = document.getElementById('login-email');
+const loginPasswordEl   = document.getElementById('login-password');
+const loginBtn          = document.getElementById('login-btn');
+const loginError        = document.getElementById('login-error');
+const logoutBtn         = document.getElementById('logout-btn');
+const userEmailDisplay  = document.getElementById('user-email-display');
+const wsDot             = document.getElementById('ws-dot');
+const wsLabel           = document.getElementById('ws-label');
+const sidebarList       = document.getElementById('sidebar-stock-list');
+const cardsGrid         = document.getElementById('stock-cards-grid');
+const emptyState        = document.getElementById('empty-state');
+const subCountLabel     = document.getElementById('sub-count-label');
+const lastUpdatedLabel  = document.getElementById('last-updated-label');
+const toastEl           = document.getElementById('toast');
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function showToast(msg, type = 'info') {
+  toastEl.textContent = msg;
+  toastEl.className = `show ${type}`;
+  clearTimeout(toastEl._timer);
+  toastEl._timer = setTimeout(() => { toastEl.className = ''; }, 2800);
+}
+
+function apiRequest(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(API_BASE + path, opts).then(r => r.json());
+}
+
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-IN', { hour12: false });
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function login(email, password) {
+  loginBtn.disabled = true;
+  loginBtn.textContent = 'Signing in…';
+  loginError.textContent = '';
+  try {
+    const data = await apiRequest('/login', 'POST', { email, password });
+    if (data.error) { loginError.textContent = data.error; return; }
+    token = data.token;
+    currentUser = data.user;
+    localStorage.setItem('sp_token', token);
+    initDashboard();
+  } catch (e) {
+    loginError.textContent = 'Cannot connect to server. Is the backend running?';
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = 'Sign in';
+  }
+}
+
+function logout() {
+  token = null; currentUser = null;
+  localStorage.removeItem('sp_token');
+  if (ws) { ws.close(); ws = null; }
+  subscriptions = [];
+  priceHistory = {};
+  dashboard.style.display = 'none';
+  loginScreen.style.display = 'flex';
+  loginEmailEl.value = '';
+  loginPasswordEl.value = '';
+  loginError.textContent = '';
+}
+
+// ── Dashboard Init ─────────────────────────────────────────────────────────────
+async function initDashboard() {
+  loginScreen.style.display = 'none';
+  dashboard.style.display   = 'flex';
+  userEmailDisplay.textContent = currentUser.email;
+  subscriptions = currentUser.subscriptions || [];
+
+  // Init price history
+  const stocksData = await apiRequest('/stocks');
+  if (stocksData.prices) {
+    for (const [t, d] of Object.entries(stocksData.prices)) {
+      priceHistory[t] = Array(20).fill(d.price);
+    }
+  }
+
+  renderSidebar();
+  renderCards();
+  connectWebSocket();
+}
+
+// ── Sidebar ────────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  sidebarList.innerHTML = '';
+  const allStocks = ['GOOG', 'TSLA', 'AMZN', 'META', 'NVDA'];
+  for (const ticker of allStocks) {
+    const isSub = subscriptions.includes(ticker);
+    const item = document.createElement('div');
+    item.className = `stock-item${isSub ? ' subscribed' : ''}`;
+    item.dataset.ticker = ticker;
+    item.innerHTML = `
+      <div class="stock-item-left">
+        <div class="stock-icon">${ticker.substring(0,4)}</div>
+        <div class="stock-info">
+          <div class="stock-ticker">${ticker}</div>
+          <div class="stock-name">${STOCK_NAMES[ticker]}</div>
+        </div>
+      </div>
+      <button class="sub-toggle" title="${isSub ? 'Unsubscribe' : 'Subscribe'}">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </button>`;
+    item.addEventListener('click', () => toggleSubscription(ticker));
+    sidebarList.appendChild(item);
+  }
+}
+
+// ── Cards ──────────────────────────────────────────────────────────────────────
+function renderCards() {
+  cardsGrid.innerHTML = '';
+  if (subscriptions.length === 0) {
+    emptyState.classList.remove('hidden');
+    subCountLabel.textContent = 'No subscriptions yet';
+    return;
+  }
+  emptyState.classList.add('hidden');
+  subCountLabel.textContent = `Watching ${subscriptions.length} stock${subscriptions.length > 1 ? 's' : ''} live`;
+
+  for (const ticker of subscriptions) {
+    const history = priceHistory[ticker] || [];
+    const price = history[history.length - 1] || 0;
+    const card = document.createElement('div');
+    card.className = 'stock-card';
+    card.id = `card-${ticker}`;
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-ticker-wrap">
+          <div class="card-icon">${ticker.substring(0,4)}</div>
+          <div>
+            <div class="card-ticker">${ticker}</div>
+            <div class="card-name">${STOCK_NAMES[ticker]}</div>
+          </div>
+        </div>
+        <button class="btn-unsub" onclick="toggleSubscription('${ticker}')">Remove</button>
+      </div>
+      <div class="card-price" id="price-${ticker}">$${price.toFixed(2)}</div>
+      <div class="card-change flat" id="change-${ticker}">— 0.00 (0.000%)</div>
+      <div class="card-sparkline" id="sparkline-${ticker}"></div>`;
+    cardsGrid.appendChild(card);
+    renderSparkline(ticker);
+  }
+}
+
+// ── Sparkline ──────────────────────────────────────────────────────────────────
+function renderSparkline(ticker) {
+  const container = document.getElementById(`sparkline-${ticker}`);
+  if (!container) return;
+  const history = priceHistory[ticker] || [];
+  if (history.length < 2) return;
+
+  const w = 220, h = 40, pad = 3;
+  const min = Math.min(...history);
+  const max = Math.max(...history);
+  const range = max - min || 1;
+
+  const pts = history.map((p, i) => {
+    const x = pad + (i / (history.length - 1)) * (w - pad * 2);
+    const y = h - pad - ((p - min) / range) * (h - pad * 2);
+    return `${x},${y}`;
+  });
+
+  const isUp = history[history.length - 1] >= history[0];
+  const lineColor = isUp ? '#10b981' : '#ef4444';
+  const fillId = `fill-${ticker}`;
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="${fillId}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.25"/>
+          <stop offset="100%" stop-color="${lineColor}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points="${pts.join(' ')} ${w - pad},${h} ${pad},${h}" fill="url(#${fillId})"/>
+      <polyline points="${pts.join(' ')}" fill="none" stroke="${lineColor}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+}
+
+// ── Price update from WebSocket ────────────────────────────────────────────────
+function applyPriceUpdate(prices) {
+  lastUpdatedLabel.textContent = `Updated ${formatTime(Date.now())}`;
+
+  for (const [ticker, data] of Object.entries(prices)) {
+    // Update history
+    if (!priceHistory[ticker]) priceHistory[ticker] = [];
+    priceHistory[ticker].push(data.price);
+    if (priceHistory[ticker].length > 30) priceHistory[ticker].shift();
+
+    const priceEl  = document.getElementById(`price-${ticker}`);
+    const changeEl = document.getElementById(`change-${ticker}`);
+    const card     = document.getElementById(`card-${ticker}`);
+    if (!priceEl || !card) continue;
+
+    priceEl.textContent = `$${data.price.toFixed(2)}`;
+
+    const up   = data.change >= 0;
+    const sign = data.change >= 0 ? '+' : '';
+    changeEl.textContent = `${sign}${data.change.toFixed(2)} (${sign}${data.changePercent.toFixed(3)}%)`;
+    changeEl.className = `card-change ${data.change > 0 ? 'up' : data.change < 0 ? 'down' : 'flat'}`;
+
+    // Flash animation
+    card.classList.remove('flash-green', 'flash-red');
+    void card.offsetWidth; // force reflow
+    if (data.change > 0) card.classList.add('flash-green');
+    else if (data.change < 0) card.classList.add('flash-red');
+
+    renderSparkline(ticker);
+  }
+}
+
+// ── WebSocket ──────────────────────────────────────────────────────────────────
+function connectWebSocket() {
+  if (ws) ws.close();
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'authenticate', token }));
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+    if (msg.type === 'authenticated') {
+      wsDot.className = 'ws-dot connected';
+      wsLabel.textContent = 'Live';
+    }
+    if (msg.type === 'price_update') {
+      applyPriceUpdate(msg.prices);
+    }
+    if (msg.type === 'error') {
+      console.error('WS error:', msg.message);
+    }
+  };
+
+  ws.onclose = () => {
+    wsDot.className = 'ws-dot disconnected';
+    wsLabel.textContent = 'Disconnected';
+    // Reconnect after 3s
+    setTimeout(() => { if (token) connectWebSocket(); }, 3000);
+  };
+
+  ws.onerror = () => {
+    wsDot.className = 'ws-dot disconnected';
+    wsLabel.textContent = 'Error';
+  };
+}
+
+// ── Subscription toggle ────────────────────────────────────────────────────────
+async function toggleSubscription(ticker) {
+  const isSub = subscriptions.includes(ticker);
+  try {
+    let data;
+    if (isSub) {
+      data = await apiRequest(`/subscribe/${ticker}`, 'DELETE');
+      showToast(`Unsubscribed from ${ticker}`, 'info');
+    } else {
+      data = await apiRequest('/subscribe', 'POST', { ticker });
+      showToast(`Subscribed to ${ticker} ✓`, 'success');
+    }
+    if (data.error) { showToast(data.error, 'error'); return; }
+    subscriptions = data.subscriptions;
+
+    // Notify WS of updated subscriptions
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'update_subscriptions', subscriptions }));
+    }
+
+    renderSidebar();
+    renderCards();
+  } catch (e) {
+    showToast('Server error, please try again.', 'error');
+  }
+}
+
+// ── Auto-login on page load ───────────────────────────────────────────────────
+async function tryAutoLogin() {
+  if (!token) return;
+  try {
+    const data = await apiRequest('/subscriptions');
+    if (data.error) { logout(); return; }
+    // Decode user from token
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    currentUser = { id: payload.userId, email: payload.email, subscriptions: data.subscriptions };
+    initDashboard();
+  } catch {
+    logout();
+  }
+}
+
+// ── Event listeners ───────────────────────────────────────────────────────────
+loginBtn.addEventListener('click', () => login(loginEmailEl.value.trim(), loginPasswordEl.value));
+loginPasswordEl.addEventListener('keydown', e => { if (e.key === 'Enter') loginBtn.click(); });
+loginEmailEl.addEventListener('keydown',    e => { if (e.key === 'Enter') loginPasswordEl.focus(); });
+logoutBtn.addEventListener('click', logout);
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+tryAutoLogin();
+</script>
+</body>
+</html>

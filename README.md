@@ -1,3 +1,13 @@
+## Live Demo
+
+- **Live server:** https://stock-trading-platform-d57k.onrender.com  
+- **Deployment screenshot:**
+
+   ![Deployment screenshot](Live_demo_image.png)
+
+Replace the URL above with your actual deployed site URL and add the screenshot file at `assets/deployment_screenshot.png` in the repository before committing.
+
+
 # StockPulse — Live Stock Broker Dashboard
 
 A real-time stock broker client web dashboard built for the CUPI Full-Stack Developer Assignment.
